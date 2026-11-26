@@ -1,0 +1,12 @@
+reference/
+comparison/
+comparison-*/
+screenshots/
+teachme/
+spec.md
+decisions.md
+plan/
+.agents/
+.claude/
+*.jks
+keystore.properties

@@ -1,0 +1,27 @@
+# One row per Pill feature. Columns are separated by TABs. Lines starting with # are ignored.
+# id | title | steps | wait | cleanup | iPhone key | expected state
+#   steps, cleanup: pill.sh verbs separated by " ; ". "sleep N" waits. A leading "& " runs the verb in the background.
+#   "@shot" takes an Android screenshot at that moment (several allowed, they are stacked); with none, one is taken after "wait".
+#   $PX $PY in a step = centre of the idle pill. A failing step marks the row "android step failed" (cleanup still runs).
+#   cleanup: "-" for none (an empty column is not allowed). wait: seconds between the last step and the screenshot.
+#   Before every row Pill must be idle and nothing may be pending (the runner waits and resets); the end of the run restores the App menu.
+#   iPhone key: alternatives separated by ","; each is a text searched (case-insensitive) in the Feature column of reference/ios/index.md.
+#   Only simulator pictures (sim-*) match, except after "web:" (then only the other pictures). "=text" must equal the whole Feature text.
+#   "#box label" picks one labelled crop box. "-" = no iPhone picture; "full" = no picture and the Android side shows the whole screen.
+#   Simulator pictures are compared by whole-screen width; other pictures are compared by pill width.
+#   expected state: type/kind/size of Pill's "shown" state at every shot ("*" matches anything). A mismatch marks the row "wrong state".
+idle	Idle pill	cutout off	0.5	-	=idle	idle/-/compact
+message-compact	Message, compact	chat one Anna "Are we still on for six tonight?"	0.8	swipeup ; unsnooze one	=incoming message, short banner	event/message/compact
+message-compact-long	Message, compact, long text	chat one Anna "Are we still on for six tonight? I can also do seven if the table is not ready, just tell me."	2.2	swipeup ; unsnooze one	-	event/message/compact
+message-large	Message, opened (canopy)	chat one Maya "Dinner at eight? I booked the corner table." read,mute,delete ; sleep 0.5 ; tap	0.8	tap 540 1500 ; unsnooze one	=incoming message, long banner	event/message/large
+reply-field	Message, reply field with keyboard	chat one Maya "Dinner at eight? I booked the corner table." ; sleep 0.5 ; tap ; sleep 0.5 ; button reply	1.2	tap 540 1500 ; unsnooze one	full	event/message/large
+charger	Charger	charge on	0.8	charge off	charging	event/charger/compact
+music-compact	Music, compact	player one play ; sleep 2	0.5	player one stop	=music compact	activity/music/compact
+music-large	Music, large	player one play ; sleep 2 ; tap	0.8	player one stop ; home	=music expanded	activity/music/large
+call-incoming	Incoming call	call 5557777	2	hangup 5557777 ; sleep 2	web:incoming call	activity/call/large
+call-ongoing-compact	Ongoing call, compact	call 5557777 ; sleep 1.5 ; button answer ; sleep 1 ; home ; sleep 1.5	0.5	hangup 5557777 ; sleep 2	web:call compact	activity/call/compact
+call-ongoing-large	Ongoing call, large	call 5557777 ; sleep 1.5 ; button answer ; sleep 1 ; home ; sleep 1.5 ; tap	1.2	hangup 5557777 ; sleep 2	web:ongoing call expanded	activity/call/large
+alarm	Alarm ringing	alarm ring "Wake up"	2	alarm stop	-	activity/alarm/large
+app-menu	App menu (4 apps)	appmenu com.android.chrome,com.google.android.apps.maps,com.google.android.deskclock,com.google.android.apps.photos ; tapleft	0.8	tap 540 1700 ; home ; appmenu "$APPMENU_ORIG"	-	idle/-/fastmenu
+actions-menu	Actions menu	tapright	0.8	tap 540 1700 ; home	-	idle/-/quickmenu
+recent-apps	Recent apps	settings ; sleep 1.5 ; home ; sleep 1 ; & drag $PX $PY $PX $PY 4000 ; sleep 1.5	0.3	sleep 3 ; home	-	idle/-/recentapps
