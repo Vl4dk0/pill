@@ -165,7 +165,7 @@ fun PillRoot(
         }
 
     val large = view.size != Size.Compact
-    // While hidden the pill keeps moving to where it would be, so it shows up in place; with nothing to draw it shrinks to the hole.
+    // With nothing to draw the pill shrinks to the hole.
     val target = pillFrame(screen, settings, view.copy(visible = true), t.want) ?: restingFrame(screen, settings)
     val spec = spring<Dp>(dampingRatio = 0.72f, stiffness = 460f)
     // The arms are distances from the hole centre, so asymmetric compact pills and rotation changes stay anchored on the hole.
@@ -178,7 +178,18 @@ fun PillRoot(
     val crownLeftArmAnim = remember { Animatable(arms.crownLeft.dp, Dp.VectorConverter) }
     val crownRightArmAnim = remember { Animatable(arms.crownRight.dp, Dp.VectorConverter) }
 
-    LaunchedEffect(arms) {
+    // A pill that is not drawn waits as the bare hole, so it grows out of the hole when it shows.
+    val resting = restingFrame(screen, settings).arms(screen)
+    LaunchedEffect(arms, view.visible) {
+        if (!view.visible) {
+            crownLeftArmAnim.snapTo(resting.crownLeft.dp)
+            crownRightArmAnim.snapTo(resting.crownRight.dp)
+            leftArmAnim.snapTo(resting.left.dp)
+            rightArmAnim.snapTo(resting.right.dp)
+            heightAnim.snapTo(resting.height.dp)
+            topAnim.snapTo(resting.top.dp)
+            return@LaunchedEffect
+        }
         launch { crownLeftArmAnim.animateTo(arms.crownLeft.dp, spec) }
         launch { crownRightArmAnim.animateTo(arms.crownRight.dp, spec) }
         launch { leftArmAnim.animateTo(arms.left.dp, spec) }

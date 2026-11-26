@@ -221,8 +221,9 @@ fun frameOf(
     arms: Arms,
 ): Frame {
     val cx = screen.anchor.cx
-    val right = screen.widthDp - MARGIN
-    val boxLeft = (cx - arms.left).coerceIn(MARGIN, maxOf(MARGIN, right))
+    // The edge of the screen is the limit, so the spring may overshoot into the margin.
+    val right = screen.widthDp
+    val boxLeft = (cx - arms.left).coerceIn(0f, maxOf(0f, right))
     val boxRight = (cx + arms.right).coerceIn(boxLeft, maxOf(boxLeft, right))
     val width = (boxRight - boxLeft).coerceAtLeast(0f)
     val crownL = ((cx - arms.crownLeft) - boxLeft).coerceIn(0f, width)

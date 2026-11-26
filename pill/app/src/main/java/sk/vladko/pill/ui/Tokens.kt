@@ -25,14 +25,8 @@ val SHELF_TOP_PAD = SHELF_TOP_PAD_DP.dp
 
 // The pill's outline (OutlinePath.kt), in dp.
 
-/** Largest corner of a full pill, and the bottom corners of a canopy's shelf. */
-const val PILL_MAX_CORNER_DP = 28f
-
-/** Largest outer top corner of a canopy's shelf. */
-const val CANOPY_SHELF_CORNER_DP = 22f
-
-/** How far the shelf flares out from the crown at the shoulder. */
-const val CANOPY_FLARE_DP = 24f
+/** Largest corner of the pill: a large view's rectangle uses it, shorter pills are limited by their height. */
+const val PILL_MAX_CORNER_DP = 40f
 
 /** Round and capsule buttons in large views. */
 val BUTTON_SIZE = 50.dp
