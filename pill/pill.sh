@@ -372,17 +372,17 @@ case $1 in
   logs) a logcat -d -s PILL FAKECHAT ;;
   cutout)
     # `on` makes the emulator look like Vladko's Nothing Phone (2): a 1080 x 2412 screen and one punch hole at the top centre.
-    # The image has no centred-hole overlay of its own, so it borrows the Pixel 9 one (84 px circle, centre x 540, y 86.5, status
-    # bar 136 px), and replaces the stock top-left `hole`. `off` returns the image's own screen and switches every overlay off.
+    # The image has no centred-hole overlay of its own, so it borrows the Pixel 7 one (68 px circle, centre x 540, y 68; the real
+    # phone has 58.5 px at x 540, y 62, status bar 126 px), and replaces the stock top-left `hole`. `off` returns the image's own screen and switches every overlay off.
     # Overlays and `wm size` survive a reboot, but `on` is safe to repeat.
     for o in $(a shell cmd overlay list | tr -d '\r' | grep -o 'com.android.internal.display.cutout.emulation.[a-z0-9]*'); do
       a shell cmd overlay disable --user current $o >/dev/null
     done
     if [[ $2 == on ]]; then
-      for o in com.android.internal.emulation.pixel_9 com.android.systemui.emulation.pixel_9; do a shell cmd overlay enable --user current $o >/dev/null; done
+      for o in com.android.internal.emulation.pixel_7 com.android.systemui.emulation.pixel_7; do a shell cmd overlay enable --user current $o >/dev/null; done
       a shell wm size 1080x2412 >/dev/null
     else
-      for o in com.android.internal.emulation.pixel_9 com.android.systemui.emulation.pixel_9; do a shell cmd overlay disable --user current $o >/dev/null; done
+      for o in com.android.internal.emulation.pixel_7 com.android.systemui.emulation.pixel_7; do a shell cmd overlay disable --user current $o >/dev/null; done
       a shell wm size reset >/dev/null
     fi ;;
   shutdown) a emu kill ;;
