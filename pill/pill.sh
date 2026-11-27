@@ -255,9 +255,9 @@ case $1 in
     [[ $2 == (${~PET_STATES}) ]] || { echo "usage: pill.sh pet $PET_STATES" >&2; exit 2 }
     command_ PET --es state $2 ;;
   petevent)
-    # Makes the pet react as if it happened: notify (runs into the hole), plug (excited), low (tired), open|close (a menu), dance (6 s).
+    # Makes the pet react as if it happened: notify (runs into the hole and stays), clear (it peeks), plug (excited), low (tired), open|close (a menu), dance (6 s).
     # Prints ok, or "ok: waits until the pet is seen" when the pet is not shown now.
-    [[ $2 == (notify|plug|low|open|close|dance) ]] || { echo "usage: pill.sh petevent notify|plug|low|open|close|dance" >&2; exit 2 }
+    [[ $2 == (notify|clear|plug|low|open|close|dance) ]] || { echo "usage: pill.sh petevent notify|clear|plug|low|open|close|dance" >&2; exit 2 }
     command_ PET_EVENT --es event $2 ;;
   petstyle)
     # Sets which animal the pet is. Prints ok or error.
@@ -392,5 +392,5 @@ case $1 in
     adb devices | grep -qE '^emulator-[0-9]+\sdevice' || $0 boot
     $0 install; $0 enable
     compare/compare.sh ;;
-  *) echo "usage: pill.sh boot|install|enable|disable|shot <file>|tap [x y]|doubletap <x> <y>|longpress [x y]|tapleft|tapright|holdleft|holdright|swipedown|volkeys|alarm [ring|silent|stop] [label]|nav [stop|<title> [sub [text]]]|swipeup|flick [px] [ms]|swipeleft|swiperight|drag <x1> <y1> <x2> <y2> <hold-ms>|button <name>|chat one|two <chat> <text> [actions]|unsnooze one|two|all|clearnotifs|notify <title> <body>|sms <number> <text>|call <number>|hangup <number>|voip <name> [style|plain|dialing|connected]|lock|unlock|rotate|fullscreen one|two on|off|home|settings|charge on|off|battery <0-100|reset>|player one|two play|pause|next|prev|stop|media|gesture <slot> <choice>|actionsmenu <ids>|appmenu <packages>|action <id>|pet <state>|petevent notify|plug|low|open|close|dance|petstyle <cat|dog|bird|monkey|clawd>|strip <pet state> [out.png]|clip <pet state> [out.mp4]|reel <animal> [label] [out.mp4]|state|logs|cutout on|off|test|shutdown" >&2; exit 2 ;;
+  *) echo "usage: pill.sh boot|install|enable|disable|shot <file>|tap [x y]|doubletap <x> <y>|longpress [x y]|tapleft|tapright|holdleft|holdright|swipedown|volkeys|alarm [ring|silent|stop] [label]|nav [stop|<title> [sub [text]]]|swipeup|flick [px] [ms]|swipeleft|swiperight|drag <x1> <y1> <x2> <y2> <hold-ms>|button <name>|chat one|two <chat> <text> [actions]|unsnooze one|two|all|clearnotifs|notify <title> <body>|sms <number> <text>|call <number>|hangup <number>|voip <name> [style|plain|dialing|connected]|lock|unlock|rotate|fullscreen one|two on|off|home|settings|charge on|off|battery <0-100|reset>|player one|two play|pause|next|prev|stop|media|gesture <slot> <choice>|actionsmenu <ids>|appmenu <packages>|action <id>|pet <state>|petevent notify|clear|plug|low|open|close|dance|petstyle <cat|dog|bird|monkey|clawd>|strip <pet state> [out.png]|clip <pet state> [out.mp4]|reel <animal> [label] [out.mp4]|state|logs|cutout on|off|test|shutdown" >&2; exit 2 ;;
 esac

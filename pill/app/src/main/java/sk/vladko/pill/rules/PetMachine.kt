@@ -99,10 +99,15 @@ enum class PetEvent(
     val id: String,
 ) {
     /**
-     * A notification arrives: the pet runs behind the camera hole, stays there a few seconds and peeks out. Only this event
-     * starts Hide, Hidden and Peek (besides forcing them by hand), and only when the pet can reach a real hole (the pill has one and has room to walk); else the pet carries on.
+     * A message or an ordinary notification is shown in the pill: the pet runs behind the camera hole and stays hidden for as
+     * long as it is shown. Only this event starts Hide, Hidden and Peek (besides forcing them by hand), and only when the pet
+     * can reach a real hole (the pill has one and has room to walk); else the pet carries on. Another one that comes while the
+     * pet is hidden keeps it hidden; one that comes during the peek or the walk out sends it back behind the hole.
      */
     Notify("notify"),
+
+    /** The notification is not shown in the pill any more: a hidden pet peeks out and then walks away from the hole. */
+    Clear("clear"),
 
     /** A charger was plugged in: the pet gets excited (it stays in the charger view). */
     Plug("plug"),
@@ -373,6 +378,11 @@ private fun excursion(
     }
 }
 
+private enum class Notice { None, Shown, Over }
+
+/** How long one step of a hidden pet lasts while a notification is shown; the next step is the same until it goes. */
+private const val HOLD_MS = 600_000L
+
 class PetMachine(
     private val random: Random,
     x: Float = 1f,
@@ -412,6 +422,9 @@ class PetMachine(
     /** How far from [holeX] (a fraction of the walkable width) the hole still covers the pet. Only a walk or the hide reaction may be there. */
     var holeHalf = 0f
 
+    /** Whether a notification keeps the pet behind the hole: shown now, over (the pet comes out), or none. */
+    private var notice = Notice.None
+
     /** The state that follows the walk the pet finishes because it was cut short under the hole. */
     private var afterWalk: PetState? = null
 
@@ -429,7 +442,8 @@ class PetMachine(
     private val hiding: Boolean get() = current?.state == PetState.Hide || current?.state == PetState.Hidden
 
     /**
-     * The step that follows the current one: hide leads to hidden and hidden to a peek, after which life goes on by chance;
+     * The step that follows the current one: hide leads to hidden, hidden lasts while a notification is shown and then leads
+     * to a peek, after which life goes on by chance;
      * otherwise dance, a waiting reaction, else chance. Out of the peek the pet always walks away from the hole first.
      * Chance never picks Hide, Hidden or Peek.
      */
@@ -440,8 +454,8 @@ class PetMachine(
             when {
                 from == null -> PetState.Sit
                 from == PetState.Roam && current?.roam?.hurryFrom != null -> afterHurry.also { afterHurry = null } ?: PetState.Sit
-                from == PetState.Hide -> PetState.Hidden
-                from == PetState.Hidden -> PetState.Peek
+                from == PetState.Hide -> if (notice == Notice.Over) PetState.Peek else PetState.Hidden
+                from == PetState.Hidden -> if (notice == Notice.Shown) PetState.Hidden else PetState.Peek
                 from == PetState.Peek -> PetState.Walk
                 from == PetState.Walk && afterWalk != null -> afterWalk.also { afterWalk = null } ?: PetState.Sit
                 dancing -> PetState.Dance
@@ -544,13 +558,21 @@ class PetMachine(
         event: PetEvent,
         elapsedMs: Long,
     ): PetStep? {
+        if (event == PetEvent.Clear) return release(elapsedMs)
         // In the hole, a reaction waits until the pet comes out.
         if (hiding) {
             queue(event, elapsedMs)
             return null
         }
         return when (event) {
-            PetEvent.Notify -> if (reachesHole) goTo(PetState.Hide, elapsedMs) else null
+            PetEvent.Notify ->
+                if (reachesHole) {
+                    notice = Notice.Shown
+                    goTo(PetState.Hide, elapsedMs)
+                } else {
+                    null
+                }
+            PetEvent.Clear -> null
             PetEvent.Plug -> goTo(PetState.Excited, elapsedMs)
             PetEvent.Low -> goTo(PetState.Tired, elapsedMs)
             PetEvent.Open -> goTo(PetState.Startle, elapsedMs)
@@ -564,18 +586,30 @@ class PetMachine(
         elapsedMs: Long,
     ) {
         when (event) {
-            PetEvent.Notify -> if (reachesHole && !hiding) force(PetState.Hidden, elapsedMs, hurry = false)
+            PetEvent.Notify ->
+                if (reachesHole) {
+                    notice = Notice.Shown
+                    if (!hiding) force(PetState.Hidden, elapsedMs, hurry = false)
+                }
+            PetEvent.Clear -> if (notice == Notice.Shown) notice = Notice.Over
             PetEvent.Plug -> pending = PetState.Excited
             PetEvent.Low -> pending = PetState.Tired
             PetEvent.Open, PetEvent.Close -> {}
         }
     }
 
+    /** The notification is gone: a hidden pet peeks out now, one still running in peeks when it is in; null to go on. */
+    private fun release(elapsedMs: Long): PetStep? {
+        if (notice != Notice.Shown) return null
+        notice = Notice.Over
+        return if (current?.state == PetState.Hidden) force(PetState.Peek, elapsedMs) else null
+    }
+
     /** The pet is seen again [elapsedMs] into its step: it peeks out of the hole, or a waiting reaction starts; null to go on. */
     fun resume(elapsedMs: Long): PetStep? {
         // An excursion does not go on behind the owner's back: the pet is home when it is seen again.
         if (current?.state == PetState.Roam) return force(pending.also { pending = null } ?: PetState.Sit, elapsedMs, hurry = false)
-        if (hiding) return force(PetState.Peek, elapsedMs)
+        if (hiding) return if (notice == Notice.Shown) null else force(PetState.Peek, elapsedMs)
         val wait = pending ?: return null
         pending = null
         return force(wait, elapsedMs)
@@ -607,6 +641,7 @@ class PetMachine(
     private fun start(state: PetState): PetStep {
         afterHurry = null
         if (state != PetState.Walk) afterWalk = null
+        if (state != PetState.Hide && state != PetState.Hidden) notice = Notice.None
         val toX =
             when {
                 state == PetState.Walk -> walkTo ?: if (x < 0.5f) 1f else 0f
@@ -629,7 +664,8 @@ class PetMachine(
                 current?.state == PetState.Walk -> if (x >= 0.5f) -1 else 1
                 else -> facing
             }
-        val range = durationOf(state, animal)
+        // Behind the hole the pet waits for the notification to go; the step only wakes the loop now and then.
+        val range = if (state == PetState.Hidden && notice == Notice.Shown) HOLD_MS..HOLD_MS else durationOf(state, animal)
         val ms = random.nextLong(range.first, range.last + 1)
         val blinks =
             buildList {

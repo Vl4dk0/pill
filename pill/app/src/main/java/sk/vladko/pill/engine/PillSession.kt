@@ -57,9 +57,6 @@ import sk.vladko.pill.system.ScreenWatch
 
 private const val TYPING_TIMEOUT_MS = 60_000L
 
-/** The kinds of pill items that come from a notification: when one arrives, the pet hides behind the camera hole. */
-private val NOTIFICATION_KINDS = setOf("message", "call", "alarm", "navigation")
-
 private data class SessionSettings(
     val gestures: Map<IdleSlot, Choice>,
     val collapsed: Boolean,
@@ -87,6 +84,9 @@ class PillSession(
     private var lastLog = ""
     private var lastScreen = Screen.Normal
     private var large = false
+
+    /** A message or ordinary notification is shown in the pill. */
+    private var notified = false
     private var battery: Int? = null
     private var foreground: String? = null
 
@@ -213,11 +213,8 @@ class PillSession(
             is Effect.RunAction -> runAction(effect.id, fromMenu = false)
             is Effect.SetCollapsed -> app.settings.update { it.copy(collapsed = effect.on) }
             is Effect.Arrived -> {
-                // The pet stays in the charger view and gets excited at once; a notification sends it behind the camera hole.
-                when (effect.item.kind) {
-                    "charger" -> PetIdle.event(PetEvent.Plug)
-                    in NOTIFICATION_KINDS -> PetIdle.event(PetEvent.Notify)
-                }
+                // The pet stays in the charger view and gets excited at once.
+                if (effect.item.kind == "charger") PetIdle.event(PetEvent.Plug)
                 if (app.settings.value.value.arrivalGlow) {
                     glow.start(
                         when (val a = effect.item.accent) {
@@ -244,6 +241,12 @@ class PillSession(
         if (nowLarge != large) {
             large = nowLarge
             PetIdle.event(if (nowLarge) PetEvent.Open else PetEvent.Close)
+        }
+        // A message or an ordinary notification in the pill keeps the pet behind the camera hole; calls, alarms, navigation and music do not.
+        val noticed = (v.shown as? Shown.Event)?.event?.kind == "message"
+        if (noticed != notified) {
+            notified = noticed
+            PetIdle.event(if (noticed) PetEvent.Notify else PetEvent.Clear)
         }
         if (v.typing != typing) {
             typing = v.typing

@@ -85,13 +85,14 @@ class PetMachineTest {
         // A charger plugged in while it hides waits until it has come out.
         assertNull(m.react(PetEvent.Plug, 200))
         assertEquals(PetState.Hidden, m.next().state)
-        assertEquals(PetState.Peek, m.next().state)
+        assertEquals(PetState.Peek, m.react(PetEvent.Clear, 0)!!.state)
         // Out of the peek the pet walks away from the hole, then the waiting reaction starts.
         assertEquals(PetState.Walk, m.next().state)
         assertEquals(PetState.Excited, m.next().state)
         // Not seen: it is in the hole at once and peeks when seen again.
         m.queue(PetEvent.Notify, 0)
         assertEquals(PetState.Hidden, m.current!!.state)
+        m.queue(PetEvent.Clear, 0)
         assertEquals(PetState.Peek, m.resume(10)!!.state)
         // A charger or low battery waits for the pet to be seen; low battery ends in sleep.
         m.queue(PetEvent.Plug, 0)
@@ -235,9 +236,40 @@ class PetMachineTest {
         machine.next()
         machine.react(PetEvent.Notify, 0)
         assertEquals(PetState.Hidden, machine.next().state)
-        assertEquals(PetState.Peek, machine.next().state)
+        assertEquals(PetState.Peek, machine.react(PetEvent.Clear, 0)!!.state)
         val out = machine.next()
         assertEquals(PetState.Walk, out.state)
         assertTrue(abs(out.toX - 0.5f) >= 0.2f)
+    }
+
+    @Test fun theHiddenPetStaysWhileTheNotificationIsShownAndPeeksWhenItGoes() {
+        val m = PetMachine(Random(2))
+        m.next()
+        assertEquals(PetState.Hide, m.react(PetEvent.Notify, 0)!!.state)
+        assertEquals(PetState.Hidden, m.next().state)
+        // No timer ends it, and a second notification keeps it there.
+        repeat(5) { assertEquals(PetState.Hidden, m.next().state) }
+        assertNull(m.react(PetEvent.Notify, 0))
+        assertEquals(PetState.Hidden, m.next().state)
+        assertEquals(PetState.Peek, m.react(PetEvent.Clear, 0)!!.state)
+        // Gone while it still runs in: it peeks as soon as it is in.
+        m.next()
+        m.react(PetEvent.Notify, 0)
+        assertNull(m.react(PetEvent.Clear, 0))
+        assertEquals(PetState.Peek, m.next().state)
+    }
+
+    @Test fun aNotificationDuringThePeekSendsThePetBackAndNoneLetsItWalkOut() {
+        val m = PetMachine(Random(4))
+        m.holeHalf = 0.2f
+        m.next()
+        m.react(PetEvent.Notify, 0)
+        m.next()
+        m.react(PetEvent.Clear, 0)
+        assertEquals(PetState.Hide, m.react(PetEvent.Notify, 100)!!.state)
+        assertEquals(PetState.Hidden, m.next().state)
+        assertEquals(PetState.Hidden, m.next().state)
+        assertEquals(PetState.Peek, m.react(PetEvent.Clear, 0)!!.state)
+        assertEquals(PetState.Walk, m.next().state)
     }
 }
