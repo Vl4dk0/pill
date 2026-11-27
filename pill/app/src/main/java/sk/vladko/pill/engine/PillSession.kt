@@ -86,7 +86,7 @@ class PillSession(
     private var large = false
 
     /** A message or ordinary notification is shown in the pill. */
-    private var notified = false
+    private var notified = PetEvent.Clear
     private var battery: Int? = null
     private var foreground: String? = null
 
@@ -242,11 +242,16 @@ class PillSession(
             large = nowLarge
             PetIdle.event(if (nowLarge) PetEvent.Open else PetEvent.Close)
         }
-        // A message or an ordinary notification in the pill keeps the pet behind the camera hole; calls, alarms, navigation and music do not.
-        val noticed = (v.shown as? Shown.Event)?.event?.kind == "message"
+        // A message or an ordinary notification keeps the pet behind the camera hole; navigation too, with a peek now and then. Calls, alarms and music do not.
+        val noticed =
+            when (val s = v.shown) {
+                is Shown.Event -> if (s.event.kind == "message") PetEvent.Notify else PetEvent.Clear
+                is Shown.Activity -> if (s.activity.kind == "navigation") PetEvent.Navigate else PetEvent.Clear
+                else -> PetEvent.Clear
+            }
         if (noticed != notified) {
             notified = noticed
-            PetIdle.event(if (noticed) PetEvent.Notify else PetEvent.Clear)
+            PetIdle.event(noticed)
         }
         if (v.typing != typing) {
             typing = v.typing

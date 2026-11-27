@@ -106,7 +106,13 @@ enum class PetEvent(
      */
     Notify("notify"),
 
-    /** The notification is not shown in the pill any more: a hidden pet peeks out and then walks away from the hole. */
+    /**
+     * Navigation is shown in the pill: the pet hides behind the camera hole like for a message, but peeks out for a moment
+     * after each pause of [ROUTE_PAUSE_MS] and hides again. A message that comes meanwhile keeps it hidden until it goes.
+     */
+    Navigate("navigate"),
+
+    /** The message, notification or navigation is not shown in the pill any more: a hidden pet peeks out and then walks away from the hole. */
     Clear("clear"),
 
     /** A charger was plugged in: the pet gets excited (it stays in the charger view). */
@@ -378,7 +384,10 @@ private fun excursion(
     }
 }
 
-private enum class Notice { None, Shown, Over }
+private enum class Notice { None, Shown, Route, Over }
+
+/** How long a pet hidden for navigation stays behind the hole between two peeks. */
+private val ROUTE_PAUSE_MS = 20_000L..40_000L
 
 /** How long one step of a hidden pet lasts while a notification is shown; the next step is the same until it goes. */
 private const val HOLD_MS = 600_000L
@@ -456,7 +465,7 @@ class PetMachine(
                 from == PetState.Roam && current?.roam?.hurryFrom != null -> afterHurry.also { afterHurry = null } ?: PetState.Sit
                 from == PetState.Hide -> if (notice == Notice.Over) PetState.Peek else PetState.Hidden
                 from == PetState.Hidden -> if (notice == Notice.Shown) PetState.Hidden else PetState.Peek
-                from == PetState.Peek -> PetState.Walk
+                from == PetState.Peek -> if (notice == Notice.Route) PetState.Hidden else PetState.Walk
                 from == PetState.Walk && afterWalk != null -> afterWalk.also { afterWalk = null } ?: PetState.Sit
                 dancing -> PetState.Dance
                 wait != null -> wait.also { pending = null }
@@ -559,6 +568,16 @@ class PetMachine(
         elapsedMs: Long,
     ): PetStep? {
         if (event == PetEvent.Clear) return release(elapsedMs)
+        if (event == PetEvent.Navigate) {
+            if (!reachesHole) return null
+            notice = Notice.Route
+            return when {
+                // A message's long hold is replaced by the pause between peeks.
+                current?.state == PetState.Hidden -> force(PetState.Hidden, elapsedMs, hurry = false)
+                hiding -> null
+                else -> goTo(PetState.Hide, elapsedMs)
+            }
+        }
         // In the hole, a reaction waits until the pet comes out.
         if (hiding) {
             queue(event, elapsedMs)
@@ -572,7 +591,7 @@ class PetMachine(
                 } else {
                     null
                 }
-            PetEvent.Clear -> null
+            PetEvent.Navigate, PetEvent.Clear -> null
             PetEvent.Plug -> goTo(PetState.Excited, elapsedMs)
             PetEvent.Low -> goTo(PetState.Tired, elapsedMs)
             PetEvent.Open -> goTo(PetState.Startle, elapsedMs)
@@ -591,7 +610,12 @@ class PetMachine(
                     notice = Notice.Shown
                     if (!hiding) force(PetState.Hidden, elapsedMs, hurry = false)
                 }
-            PetEvent.Clear -> if (notice == Notice.Shown) notice = Notice.Over
+            PetEvent.Navigate ->
+                if (reachesHole) {
+                    notice = Notice.Route
+                    force(PetState.Hidden, elapsedMs, hurry = false)
+                }
+            PetEvent.Clear -> if (notice == Notice.Shown || notice == Notice.Route) notice = Notice.Over
             PetEvent.Plug -> pending = PetState.Excited
             PetEvent.Low -> pending = PetState.Tired
             PetEvent.Open, PetEvent.Close -> {}
@@ -600,7 +624,7 @@ class PetMachine(
 
     /** The notification is gone: a hidden pet peeks out now, one still running in peeks when it is in; null to go on. */
     private fun release(elapsedMs: Long): PetStep? {
-        if (notice != Notice.Shown) return null
+        if (notice != Notice.Shown && notice != Notice.Route) return null
         notice = Notice.Over
         return if (current?.state == PetState.Hidden) force(PetState.Peek, elapsedMs) else null
     }
@@ -609,7 +633,7 @@ class PetMachine(
     fun resume(elapsedMs: Long): PetStep? {
         // An excursion does not go on behind the owner's back: the pet is home when it is seen again.
         if (current?.state == PetState.Roam) return force(pending.also { pending = null } ?: PetState.Sit, elapsedMs, hurry = false)
-        if (hiding) return if (notice == Notice.Shown) null else force(PetState.Peek, elapsedMs)
+        if (hiding) return if (notice == Notice.Shown || notice == Notice.Route) null else force(PetState.Peek, elapsedMs)
         val wait = pending ?: return null
         pending = null
         return force(wait, elapsedMs)
@@ -641,7 +665,8 @@ class PetMachine(
     private fun start(state: PetState): PetStep {
         afterHurry = null
         if (state != PetState.Walk) afterWalk = null
-        if (state != PetState.Hide && state != PetState.Hidden) notice = Notice.None
+        val inHole = state == PetState.Hide || state == PetState.Hidden || (state == PetState.Peek && notice == Notice.Route)
+        if (!inHole) notice = Notice.None
         val toX =
             when {
                 state == PetState.Walk -> walkTo ?: if (x < 0.5f) 1f else 0f
@@ -665,7 +690,13 @@ class PetMachine(
                 else -> facing
             }
         // Behind the hole the pet waits for the notification to go; the step only wakes the loop now and then.
-        val range = if (state == PetState.Hidden && notice == Notice.Shown) HOLD_MS..HOLD_MS else durationOf(state, animal)
+        val range =
+            when {
+                state != PetState.Hidden -> durationOf(state, animal)
+                notice == Notice.Shown -> HOLD_MS..HOLD_MS
+                notice == Notice.Route -> ROUTE_PAUSE_MS
+                else -> durationOf(state, animal)
+            }
         val ms = random.nextLong(range.first, range.last + 1)
         val blinks =
             buildList {

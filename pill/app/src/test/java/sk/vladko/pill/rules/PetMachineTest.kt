@@ -272,4 +272,19 @@ class PetMachineTest {
         assertEquals(PetState.Peek, m.react(PetEvent.Clear, 0)!!.state)
         assertEquals(PetState.Walk, m.next().state)
     }
+
+    @Test fun duringNavigationThePetHidesAndPeeksAfterEachPauseAndWalksOutWhenItEnds() {
+        val m = PetMachine(Random(3))
+        m.next()
+        assertEquals(PetState.Hide, m.react(PetEvent.Navigate, 0)!!.state)
+        repeat(3) {
+            val pause = m.next()
+            assertEquals(PetState.Hidden, pause.state)
+            assertTrue(pause.ms in 20_000L..40_000L)
+            assertEquals(PetState.Peek, m.next().state)
+        }
+        assertEquals(PetState.Hidden, m.next().state)
+        assertEquals(PetState.Peek, m.react(PetEvent.Clear, 0)!!.state)
+        assertEquals(PetState.Walk, m.next().state)
+    }
 }
