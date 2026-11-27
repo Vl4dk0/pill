@@ -27,7 +27,7 @@ import androidx.compose.ui.unit.dp
 import sk.vladko.pill.pill
 import sk.vladko.pill.system.AppItem
 
-/** Nothing-phone black and white (dark) or warm paper and ink (light). Red is only for "something is off". */
+/** Nothing-phone grey and white (dark, grey so the black pill shows against it) or warm paper and ink (light). Red is only for "something is off". */
 internal class Pal(
     val bg: Color,
     val panel: Color,
@@ -41,14 +41,14 @@ internal class Pal(
 
 internal val DarkPal =
     Pal(
-        Color(0xFF000000),
-        Color(0xFF111113),
-        Color(0xFF1B1B1E),
-        Color(0xFF2B2B2F),
+        Color(0xFF2A2A2D),
+        Color(0xFF343438),
+        Color(0xFF3F3F44),
+        Color(0xFF4B4B51),
         Color(0xFFF2F2EF),
-        Color(0xFF8C8C92),
+        Color(0xFFA2A2A8),
         Color(0xFFFF4B3E),
-        Color(0xFF24100E),
+        Color(0xFF3D2522),
     )
 internal val LightPal =
     Pal(
