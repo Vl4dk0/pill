@@ -28,7 +28,10 @@ import sk.vladko.pill.engine.Source
 import sk.vladko.pill.overlay.accentOf
 import sk.vladko.pill.rules.Accent
 import sk.vladko.pill.rules.PillActivity
+import sk.vladko.pill.rules.Track
+import sk.vladko.pill.rules.announcesTrack
 import sk.vladko.pill.system.Apps
+import sk.vladko.pill.system.NoteHandle
 
 /** One music player with an active media session that has a title. [id] is the player's package. Position is read live, not kept here. */
 data class Music(
@@ -139,6 +142,9 @@ private class MusicWatch(
     private val since = mutableMapOf<String, Long>()
     private val last = mutableMapOf<String, Music>()
 
+    /** The track last announced for each player. */
+    private val announced = mutableMapOf<String, Track>()
+
     private val sessionsChanged = MediaSessionManager.OnActiveSessionsChangedListener { sync(it.orEmpty()) }
 
     init {
@@ -172,6 +178,7 @@ private class MusicWatch(
         watched.clear()
         since.clear()
         last.clear()
+        announced.clear()
     }
 
     private fun stopListening() {
@@ -242,6 +249,7 @@ private class MusicWatch(
         watched.remove(id)?.let { it.controller.unregisterCallback(it.callback) }
         since.remove(id)
         last.remove(id)
+        announced.remove(id)
         host.sink.ended(id)
     }
 
@@ -266,6 +274,7 @@ private class MusicWatch(
         val title = md?.getString(MediaMetadata.METADATA_KEY_TITLE)
         if (title.isNullOrBlank()) {
             last.remove(id)
+            announced.remove(id)
             host.sink.ended(id)
             return
         }
@@ -290,5 +299,14 @@ private class MusicWatch(
         if (music == last[id]) return
         last[id] = music
         host.sink.activity(music)
+        val track = Track(title, music.artist)
+        if (announcesTrack(announced[id], track, playing)) {
+            announced[id] = track
+            // A new track arrives like a notification: the player is the sender, "Artist - Title" the text.
+            val app = host.apps.label(id)
+            host.apps.icon(id)
+            val key = "song:$id"
+            host.sink.event(Message(key, id, app, track.line, app, emptyList(), NoteHandle(key, host.notes), host.notes))
+        }
     }
 }
