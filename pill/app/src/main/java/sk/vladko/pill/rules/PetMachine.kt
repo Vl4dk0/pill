@@ -1,6 +1,7 @@
 package sk.vladko.pill.rules
 
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.sin
 import kotlin.random.Random
 
@@ -399,17 +400,29 @@ class PetMachine(
     /** Where the camera hole is, as a fraction of the walkable width; the pet hides and peeks there. */
     var holeX = 0.5f
 
+    /** How far from [holeX] (a fraction of the walkable width) the hole still covers the pet. Only a walk or the hide reaction may be there. */
+    var holeHalf = 0f
+
+    /** The state that follows the walk the pet finishes because it was cut short under the hole. */
+    private var afterWalk: PetState? = null
+
+    /** Where the walk that leaves the hole ends; null for the usual far end. */
+    private var walkTo: Float? = null
+
     /** The music view shows and the music plays: the pet dances. */
     private var dancing = false
 
     /** The pet is out on an excursion and not yet hurrying home. */
     private val roaming: Boolean get() = current?.let { it.state == PetState.Roam && it.roam?.hurryFrom == null } == true
 
+    private fun covered(at: Float): Boolean = hasHole && abs(at - holeX) < holeHalf
+
     private val hiding: Boolean get() = current?.state == PetState.Hide || current?.state == PetState.Hidden
 
     /**
      * The step that follows the current one: hide leads to hidden and hidden to a peek, after which life goes on by chance;
-     * otherwise dance, a waiting reaction, else chance. Chance never picks Hide, Hidden or Peek.
+     * otherwise dance, a waiting reaction, else chance. Out of the peek the pet always walks away from the hole first.
+     * Chance never picks Hide, Hidden or Peek.
      */
     fun next(): PetStep {
         val from = current?.state
@@ -420,6 +433,8 @@ class PetMachine(
                 from == PetState.Roam && current?.roam?.hurryFrom != null -> afterHurry.also { afterHurry = null } ?: PetState.Sit
                 from == PetState.Hide -> PetState.Hidden
                 from == PetState.Hidden -> PetState.Peek
+                from == PetState.Peek -> PetState.Walk
+                from == PetState.Walk && afterWalk != null -> afterWalk.also { afterWalk = null } ?: PetState.Sit
                 dancing -> PetState.Dance
                 wait != null -> wait.also { pending = null }
                 // Only a still sit can end in an excursion.
@@ -498,6 +513,20 @@ class PetMachine(
                 facing = it.faceFrom
             }
         }
+        // Under the hole only a walk goes on: a pet that rests there is half covered, so it walks out first.
+        val cut = current
+        if (cut != null && covered(x) && !state.hidesAtHole && state != PetState.Walk) {
+            afterWalk = state
+            walkTo =
+                if (cut.state == PetState.Walk) {
+                    cut.toX
+                } else if (cut.face > 0) {
+                    1f
+                } else {
+                    0f
+                }
+            return start(PetState.Walk)
+        }
         return start(state)
     }
 
@@ -568,14 +597,16 @@ class PetMachine(
 
     private fun start(state: PetState): PetStep {
         afterHurry = null
+        if (state != PetState.Walk) afterWalk = null
         val toX =
             when {
-                state == PetState.Walk -> if (x < 0.5f) 1f else 0f
+                state == PetState.Walk -> walkTo ?: if (x < 0.5f) 1f else 0f
                 // The monkey lands on the other side of the hole.
                 state == PetState.Roam && animal == PetAnimal.Monkey -> (2f * holeX - x).coerceIn(0f, 1f)
                 (state == PetState.Hide || state == PetState.Hidden) && reachesHole -> holeX
                 else -> x
             }
+        walkTo = null
         val face =
             when {
                 // The bird leaves by the nearer screen edge.
@@ -632,7 +663,6 @@ class PetMachine(
             when (from) {
                 PetState.Sleep -> mapOf(PetState.Stretch to 60, PetState.Sit to 40)
                 PetState.Tired -> mapOf(PetState.Sleep to 1)
-                PetState.Peek -> mapOf(PetState.Walk to 70, PetState.Sit to 30)
                 PetState.Walk -> awake + perAnimal.getValue(animal) + (PetState.Walk to 12)
                 else -> awake + perAnimal.getValue(animal)
             }.filter { (state, weight) -> weight > 0 && ((canWalk && !stays) || !state.walks) }.toList()

@@ -1,5 +1,6 @@
 package sk.vladko.pill.rules
 
+import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -85,6 +86,8 @@ class PetMachineTest {
         assertNull(m.react(PetEvent.Plug, 200))
         assertEquals(PetState.Hidden, m.next().state)
         assertEquals(PetState.Peek, m.next().state)
+        // Out of the peek the pet walks away from the hole, then the waiting reaction starts.
+        assertEquals(PetState.Walk, m.next().state)
         assertEquals(PetState.Excited, m.next().state)
         // Not seen: it is in the hole at once and peeks when seen again.
         m.queue(PetEvent.Notify, 0)
@@ -201,5 +204,40 @@ class PetMachineTest {
         // Not seen: no hurry.
         m.force(PetState.Roam, 0)
         assertEquals(PetState.Sit, m.force(PetState.Sit, 1000, hurry = false).state)
+    }
+
+    // The hole covers the middle of the walkable width: a resting pet is never there, whatever interrupts it.
+    @Test fun thePetRestsOnlyClearOfTheHoleOutsideTheNotificationReaction() {
+        PetAnimal.entries.forEach { animal ->
+            val machine = PetMachine(Random(11))
+            machine.animal = animal
+            machine.holeHalf = 0.2f
+            val random = Random(5)
+            var step = machine.next()
+            repeat(4000) {
+                val at = random.nextLong(step.ms)
+                val forced =
+                    when (random.nextInt(4)) {
+                        0 -> machine.react(PetEvent.entries[random.nextInt(PetEvent.entries.size)], at)
+                        1 -> machine.place(random.nextBoolean(), at)
+                        else -> null
+                    }
+                step = forced ?: machine.next()
+                val rests = !step.state.hidesAtHole && step.state != PetState.Walk && step.state != PetState.Roam
+                if (rests) assertTrue(abs(step.fromX - 0.5f) >= 0.2f && abs(step.toX - 0.5f) >= 0.2f, "$animal ${step.state} ${step.fromX}")
+            }
+        }
+    }
+
+    @Test fun afterThePeekThePetWalksAwayFromTheHole() {
+        val machine = PetMachine(Random(1))
+        machine.holeHalf = 0.2f
+        machine.next()
+        machine.react(PetEvent.Notify, 0)
+        assertEquals(PetState.Hidden, machine.next().state)
+        assertEquals(PetState.Peek, machine.next().state)
+        val out = machine.next()
+        assertEquals(PetState.Walk, out.state)
+        assertTrue(abs(out.toX - 0.5f) >= 0.2f)
     }
 }

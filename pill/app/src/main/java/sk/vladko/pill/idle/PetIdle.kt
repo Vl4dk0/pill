@@ -228,18 +228,23 @@ internal object PetIdle {
             remember(box, hole, density, animal) {
                 petScene(animal, box.width * density, box.height * density, hole.cutout(density))
             }
+        // The pet's box overlaps the hole when its middle is closer than this to the hole, as a fraction of the walkable width.
+        val walkable = abs(scene.middle(1f) - scene.middle(0f))
+        val holeHalf = if (hole.hasHole && walkable > 1f) ((hole.cutoutWidth * density + GRID * scene.unit) / 2f - 1f) / walkable else 0f
         val start =
             remember {
                 machine.canWalk = scene.canWalk
                 machine.stays = spot != null
                 machine.hasHole = hole.hasHole
                 machine.holeX = scene.holeX
+                machine.holeHalf = holeHalf
                 machine.animal = animal
                 step ?: machine.next().also { step = it }
             }
         SideEffect {
             machine.hasHole = hole.hasHole
             machine.holeX = scene.holeX
+            machine.holeHalf = holeHalf
             machine.animal = animal
         }
         // Outside the pill the pet is drawn without the camera hole: the hole must not be cut from a body that left it.
