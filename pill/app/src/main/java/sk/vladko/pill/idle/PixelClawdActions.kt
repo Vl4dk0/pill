@@ -695,25 +695,20 @@ private fun Cells.thought(f: PetFrame) {
     val idea = f.step.ms - 800
     if (ms < 300) return
     val spin = (ms / 110) % 2 == 0L
+    val small = ms < 560
     when {
-        ms < idea ->
-            glyph(
-                if (ms <
-                    560
-                ) {
-                    (if (spin) STAR_PLUS_S else STAR_CROSS_S)
-                } else {
-                    (if (spin) STAR_PLUS else STAR_CROSS)
-                },
-                if (ms <
-                    560
-                ) {
-                    7
-                } else {
-                    6
-                },
-                if (ms < 560) -3 else -4,
-            )
+        ms < idea -> {
+            if (small) {
+                glyph(if (spin) STAR_PLUS_S else STAR_CROSS_S, 7, -3)
+            } else {
+                glyph(if (spin) STAR_PLUS else STAR_CROSS, 6, -4)
+                // Small sparks circle the star while it turns.
+                for (k in 0..2) {
+                    val a = ms / 260f + k * 2.1f
+                    glyph(DOT, 8 + (5f * cos(a)).roundToInt(), -2 + (2f * sin(a)).roundToInt())
+                }
+            }
+        }
         ms < idea + 450 -> {
             val q = (ms - idea) / 450f
             glyph(if (spin) STAR_PLUS else STAR_CROSS, 6, -4 - (q * 1.5f).roundToInt(), 1f - ease(q))

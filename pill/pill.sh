@@ -349,7 +349,7 @@ case $1 in
     for st in $states; do
       i=$((i+1)); name=$st; keep=$st; maxs=9
       [[ $st == hide ]] && { name="hide + peek"; keep='hide|hidden|peek'; maxs=16 }
-      magick -size 1280x90 xc:'#202020' -font /System/Library/Fonts/Helvetica.ttc -fill white -pointsize 60 -gravity center -annotate +0+0 "$name" $rd/cap-$i.png
+      magick -size 1280x90 xc:'#F2EAD9' -font /System/Library/Fonts/Helvetica.ttc -fill '#222222' -pointsize 60 -gravity center -annotate +0+0 "$name" $rd/cap-$i.png
       for try in 1 2 3; do
         ( reel_part $i $st $name $try $keep $maxs ) >/dev/null && break
         a emu screenrecord stop >/dev/null 2>&1 || true
@@ -359,8 +359,8 @@ case $1 in
     first=$(sed -n 1p $rd/list.txt | sed "s/^file '//; s/'$//")
     [[ -n $first ]] || { echo "reel: no part could be recorded" >&2; exit 1 }
     dims=$(ffprobe -v error -show_entries stream=width,height -of csv=s=x:p=0 $first); tw=${dims%x*}; th=${dims#*x}
-    magick -size ${tw}x${th} xc:'#202020' -font /System/Library/Fonts/Helvetica.ttc -fill white -gravity center \
-      -pointsize 84 -annotate +0-50 "${(C)animal} · ${(C)look}" -pointsize 52 -fill '#b0b0b0' -annotate +0+50 "$label" $rd/title.png
+    magick -size ${tw}x${th} xc:'#F2EAD9' -font /System/Library/Fonts/Helvetica.ttc -fill '#222222' -gravity center \
+      -pointsize 84 -annotate +0-50 "${(C)animal} · ${(C)look}" -pointsize 52 -fill '#666666' -annotate +0+50 "$label" $rd/title.png
     ffmpeg -v error -y -loop 1 -framerate 30 -t 1.5 -i $rd/title.png -vf format=yuv420p -c:v libx264 -preset slow -crf 18 -r 30 -an $rd/p0.mp4
     { echo "file '$rd/p0.mp4'"; cat $rd/list.txt; } >$rd/all.txt
     ffmpeg -v error -y -f concat -safe 0 -i $rd/all.txt -c copy -movflags +faststart $out
