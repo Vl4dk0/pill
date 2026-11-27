@@ -330,7 +330,7 @@ internal object PetIdle {
                     roam.pointAt(
                         step.progressAt(frame.ms),
                         step.face,
-                        RoamSpace(unit, scene.middle(step.toX) - scene.middle(step.fromX), home, screenW.toFloat()),
+                        RoamSpace(unit, scene.middle(step.toX) - scene.middle(step.fromX), home, screenW.toFloat(), scene.unit),
                     )
                 val out = Offset(p.dx, p.dy)
                 // The scene without a hole stands a little off the one with it; the difference is made up.

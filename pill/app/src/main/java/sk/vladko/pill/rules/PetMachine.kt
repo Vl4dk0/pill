@@ -16,6 +16,7 @@ enum class PetAnimal(
     Dog("dog", "Dog"),
     Bird("bird", "Bird"),
     Monkey("monkey", "Monkey"),
+    Clawd("clawd", "Clawd"),
     ;
 
     companion object {
@@ -59,6 +60,8 @@ enum class PetState(
     Peck("peck", PetPose.Stand, PetAnimal.Bird),
     Scratch("scratch", PetPose.Sit, PetAnimal.Monkey),
     Banana("banana", PetPose.Sit, PetAnimal.Monkey),
+    Think("think", PetPose.Sit, PetAnimal.Clawd),
+    Type("type", PetPose.Stand, PetAnimal.Clawd),
     Excited("excited", PetPose.Stand),
     Tired("tired", PetPose.Lie),
     Startle("startle", PetPose.Stand),
@@ -241,12 +244,16 @@ class RoamPlan(
     val hurryFrom: Float? = null,
 )
 
-/** The space an excursion plays in, all in pixels: [unit] the pet's height, [landDx] how far the landing is right of the start, [homeX] the pet's middle from the screen's left edge, [screenW] the screen's width. */
+/**
+ * The space an excursion plays in, all in pixels: [unit] the pet's height, [landDx] how far the landing is right of the start,
+ * [homeX] the pet's middle from the screen's left edge, [screenW] the screen's width, [cell] one cell of Clawd.
+ */
 class RoamSpace(
     val unit: Float,
     val landDx: Float,
     val homeX: Float,
     val screenW: Float,
+    val cell: Float = unit * 0.95f / 14f,
 )
 
 /** Where the pet is [dx], [dy] from where it started (pixels, y grows down) and which way it looks (-1 left to 1 right). */
@@ -283,7 +290,8 @@ const val MONKEY_LET_GO = 0.84f
  * arc to the far side of the hole. Bird: flies off the
  * nearer screen edge and back in from the other. Cat: chases a laser dot out of the pill and down below it, pounces on it
  * there and jumps back. Dog: sniffs, digs
- * through the pill's floor, falls out of the screen and walks back in from the pill's end.
+ * through the pill's floor, falls out of the screen and walks back in from the pill's end. Clawd: types a staircase of bricks
+ * below the pill ([ClawdRoam]), walks down it and, after a look around, back up while the bricks are erased.
  */
 fun RoamPlan.pointAt(
     p: Float,
@@ -347,6 +355,7 @@ private fun excursion(
                 else -> RoamPoint(0f, 0f, dir)
             }
         }
+        PetAnimal.Clawd -> ClawdRoam.at(p).let { RoamPoint(dir * it.x * s.cell, it.y * s.cell, dir) }
         PetAnimal.Dog -> {
             // Sniffs and digs on the pill's floor, falls out of the screen, and after a pause walks in from the nearer end.
             val fall = 26f * h
@@ -580,6 +589,8 @@ class PetMachine(
             when {
                 // The bird leaves by the nearer screen edge.
                 state == PetState.Roam && animal == PetAnimal.Bird -> if (x < holeX) -1 else 1
+                // Clawd builds its stairs under the pill, toward the hole.
+                state == PetState.Roam && animal == PetAnimal.Clawd -> if (x < holeX) 1 else -1
                 toX != x -> if (toX > x) 1 else -1
                 // Out of the hole it looks toward the far end, where it walks next.
                 state == PetState.Peek -> if (x < 0.5f) 1 else -1
@@ -587,7 +598,7 @@ class PetMachine(
                 current?.state == PetState.Walk -> if (x >= 0.5f) -1 else 1
                 else -> facing
             }
-        val range = durations.getValue(state)
+        val range = durationOf(state, animal)
         val ms = random.nextLong(range.first, range.last + 1)
         val blinks =
             buildList {
@@ -646,6 +657,12 @@ class PetMachine(
     }
 
     companion object {
+        /** How long [state] lasts for [animal] (ms): Clawd needs time to write its stairs. */
+        fun durationOf(
+            state: PetState,
+            animal: PetAnimal,
+        ): LongRange = if (state == PetState.Roam && animal == PetAnimal.Clawd) ClawdRoam.MS..ClawdRoam.MS else durations.getValue(state)
+
         /** How long each state lasts (ms). A still state is a long time without any drawing. */
         val durations: Map<PetState, LongRange> =
             mapOf(
@@ -669,6 +686,8 @@ class PetMachine(
                 PetState.Peck to 2_000L..3_500L,
                 PetState.Scratch to 2_500L..3_500L,
                 PetState.Banana to 4_000L..5_000L,
+                PetState.Think to 2_800L..3_600L,
+                PetState.Type to 2_600L..4_000L,
                 PetState.Excited to 3_000L..4_000L,
                 PetState.Tired to 3_000L..4_000L,
                 PetState.Startle to 1_200L..1_500L,
@@ -690,7 +709,7 @@ class PetMachine(
                 PetState.Jump to 4,
             )
 
-        /** What each animal does more or less, and its own states: the cat sleeps more, the dog walks more, the bird hops and flies more, the monkey fidgets and jumps more. */
+        /** What each animal does more or less, and its own states: the cat sleeps more, the dog walks more, the bird hops and flies more, the monkey fidgets and jumps more, Clawd thinks and types. */
         val perAnimal: Map<PetAnimal, Map<PetState, Int>> =
             mapOf(
                 PetAnimal.Cat to mapOf(PetState.Sleep to 11, PetState.Walk to 7, PetState.Lick to 7, PetState.Knead to 5),
@@ -706,6 +725,7 @@ class PetMachine(
                     mapOf(PetState.Jump to 8, PetState.Walk to 10, PetState.Sleep to 5, PetState.Wings to 6, PetState.Peck to 6),
                 PetAnimal.Monkey to
                     mapOf(PetState.Fidget to 6, PetState.Jump to 4, PetState.Sleep to 4, PetState.Scratch to 6, PetState.Banana to 5),
+                PetAnimal.Clawd to mapOf(PetState.Think to 8, PetState.Type to 8, PetState.Walk to 9, PetState.Sleep to 4),
             )
     }
 }

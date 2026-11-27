@@ -19,4 +19,5 @@ internal fun petScene(
         PetAnimal.Dog -> PixelDogScene(w, h, hole, unit)
         PetAnimal.Bird -> PixelBirdScene(w, h, hole, unit)
         PetAnimal.Monkey -> PixelMonkeyScene(w, h, hole, unit)
+        PetAnimal.Clawd -> ClawdScene(w, h, hole, unit)
     }

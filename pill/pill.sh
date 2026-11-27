@@ -44,7 +44,7 @@ command_() {
   [[ $out == ok ]]
 }
 # Every id `pill.sh pet` accepts; `reel` takes its list of actions from here.
-PET_STATES='sit|look|walk|sleep|heart|stretch|groom|fidget|jump|hide|hidden|peek|lick|knead|bark|dig|wings|peck|scratch|banana|excited|tired|startle|dance|roam'
+PET_STATES='sit|look|walk|sleep|heart|stretch|groom|fidget|jump|hide|hidden|peek|lick|knead|bark|dig|wings|peck|scratch|banana|think|type|excited|tired|startle|dance|roam'
 ms() { printf "%d.%03d" $(($1/1000)) $(($1%1000)); }
 pkgof() { [[ $1 == (one|two) ]] || { echo "player must be one or two" >&2; exit 2 }; echo $FAKE.$1; }
 
@@ -251,7 +251,7 @@ case $1 in
     [[ -n $2 ]] || { echo "usage: pill.sh action <id>   (ids: pill.sh state | jq -r '.actions[].id')" >&2; exit 2 }
     command_ RUN_ACTION --es id $2 ;;
   pet)
-    # Forces the idle pet into a state (lick, knead: cat; bark, dig: dog; wings, peck: bird; scratch, banana: monkey). Prints ok, unavailable: <reason> or error.
+    # Forces the idle pet into a state (lick, knead: cat; bark, dig: dog; wings, peck: bird; scratch, banana: monkey; think, type: clawd). Prints ok, unavailable: <reason> or error.
     [[ $2 == (${~PET_STATES}) ]] || { echo "usage: pill.sh pet $PET_STATES" >&2; exit 2 }
     command_ PET --es state $2 ;;
   petevent)
@@ -261,7 +261,7 @@ case $1 in
     command_ PET_EVENT --es event $2 ;;
   petstyle)
     # Sets which animal the pet is. Prints ok or error.
-    [[ $2 == (cat|dog|bird|monkey) ]] || { echo "usage: pill.sh petstyle cat|dog|bird|monkey" >&2; exit 2 }
+    [[ $2 == (cat|dog|bird|monkey|clawd) ]] || { echo "usage: pill.sh petstyle cat|dog|bird|monkey|clawd" >&2; exit 2 }
     command_ SET_PET_ANIMAL --es animal $2 ;;
   strip)
     # One picture of 12 evenly spaced frames of a pet state, cut from the emulator's own recording (the phone-side
@@ -315,11 +315,11 @@ case $1 in
     # for every part and every animal, enlarged with nearest-neighbour scaling to 1280 px wide. A part that fails is retried
     # twice, then skipped and named at the end; a capture under 18 fps (busy machine) is retried twice.
     # Usage: pill.sh reel <animal> [label] [out.mp4]   (default out: build/reel-<animal>.mp4)
-    [[ $2 == (cat|dog|bird|monkey) ]] || { echo "usage: pill.sh reel cat|dog|bird|monkey [label] [out.mp4]" >&2; exit 2 }
+    [[ $2 == (cat|dog|bird|monkey|clawd) ]] || { echo "usage: pill.sh reel cat|dog|bird|monkey|clawd [label] [out.mp4]" >&2; exit 2 }
     zmodload zsh/mathfunc
     verb=reel; animal=$2; label=$3; out=${4:-build/reel-$animal.mp4}; mkdir -p ${out:h}; out=${out:A}
-    typeset -A own=(cat "lick knead" dog "bark dig" bird "wings peck" monkey "scratch banana")
-    known=(sit look walk stretch groom fidget jump heart sleep hide hidden peek excited tired startle dance roam ${=own[cat]} ${=own[dog]} ${=own[bird]} ${=own[monkey]})
+    typeset -A own=(cat "lick knead" dog "bark dig" bird "wings peck" monkey "scratch banana" clawd "think type")
+    known=(sit look walk stretch groom fidget jump heart sleep hide hidden peek excited tired startle dance roam ${=own[cat]} ${=own[dog]} ${=own[bird]} ${=own[monkey]} ${=own[clawd]})
     extra=(${${(s:|:)PET_STATES}:|known})
     states=(sit look walk stretch groom fidget jump ${=own[$animal]} $extra heart sleep hide excited tired startle dance roam)
     $SELF petstyle $animal >/dev/null; sleep 1
@@ -392,5 +392,5 @@ case $1 in
     adb devices | grep -qE '^emulator-[0-9]+\sdevice' || $0 boot
     $0 install; $0 enable
     compare/compare.sh ;;
-  *) echo "usage: pill.sh boot|install|enable|disable|shot <file>|tap [x y]|doubletap <x> <y>|longpress [x y]|tapleft|tapright|holdleft|holdright|swipedown|volkeys|alarm [ring|silent|stop] [label]|nav [stop|<title> [sub [text]]]|swipeup|flick [px] [ms]|swipeleft|swiperight|drag <x1> <y1> <x2> <y2> <hold-ms>|button <name>|chat one|two <chat> <text> [actions]|unsnooze one|two|all|clearnotifs|notify <title> <body>|sms <number> <text>|call <number>|hangup <number>|voip <name> [style|plain|dialing|connected]|lock|unlock|rotate|fullscreen one|two on|off|home|settings|charge on|off|battery <0-100|reset>|player one|two play|pause|next|prev|stop|media|gesture <slot> <choice>|actionsmenu <ids>|appmenu <packages>|action <id>|pet <state>|petevent notify|plug|low|open|close|dance|petstyle <cat|dog|bird|monkey>|strip <pet state> [out.png]|clip <pet state> [out.mp4]|reel <animal> [label] [out.mp4]|state|logs|cutout on|off|test|shutdown" >&2; exit 2 ;;
+  *) echo "usage: pill.sh boot|install|enable|disable|shot <file>|tap [x y]|doubletap <x> <y>|longpress [x y]|tapleft|tapright|holdleft|holdright|swipedown|volkeys|alarm [ring|silent|stop] [label]|nav [stop|<title> [sub [text]]]|swipeup|flick [px] [ms]|swipeleft|swiperight|drag <x1> <y1> <x2> <y2> <hold-ms>|button <name>|chat one|two <chat> <text> [actions]|unsnooze one|two|all|clearnotifs|notify <title> <body>|sms <number> <text>|call <number>|hangup <number>|voip <name> [style|plain|dialing|connected]|lock|unlock|rotate|fullscreen one|two on|off|home|settings|charge on|off|battery <0-100|reset>|player one|two play|pause|next|prev|stop|media|gesture <slot> <choice>|actionsmenu <ids>|appmenu <packages>|action <id>|pet <state>|petevent notify|plug|low|open|close|dance|petstyle <cat|dog|bird|monkey|clawd>|strip <pet state> [out.png]|clip <pet state> [out.mp4]|reel <animal> [label] [out.mp4]|state|logs|cutout on|off|test|shutdown" >&2; exit 2 ;;
 esac

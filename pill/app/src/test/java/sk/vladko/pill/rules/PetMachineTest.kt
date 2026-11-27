@@ -23,7 +23,7 @@ class PetMachineTest {
         PetAnimal.entries.forEach { animal ->
             val steps = life(animal, 3000)
             steps.forEach { step ->
-                assertTrue(step.ms in PetMachine.durations.getValue(step.state))
+                assertTrue(step.ms in PetMachine.durationOf(step.state, animal))
                 assertTrue(step.fromX in 0f..1f && step.toX in 0f..1f)
                 assertTrue(step.state.animal == null || step.state.animal == animal)
                 step.blinks.forEach { assertTrue(step.state == PetState.Sit && it + PET_BLINK_MS <= step.ms) }
