@@ -12,7 +12,7 @@ It is a personal project. I made it for the Nothing Phone (2) on Android 16. Oth
 - Charger: a short note when you plug in.
 - Navigation and alarms.
 - Menus: an app menu, quick actions and recent apps, opened by tapping the pill.
-- Pixel pets (cat, dog, bird, monkey) that live in the idle pill and react to events.
+- Pixel pets (cat, dog, bird, monkey, Clawd) that live in the idle pill and react to events.
 
 ## Privacy
 
