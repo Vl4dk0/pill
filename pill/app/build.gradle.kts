@@ -13,8 +13,8 @@ android {
         applicationId = "sk.vladko.pill"
         minSdk = 36
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.3.1"
     }
     buildFeatures { compose = true }
     // The release key lives outside the repo, in ~/.pill-signing/keystore.properties.
